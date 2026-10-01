@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 범박고등학교 독서활동 기록 시스템</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans KR"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f8fafc; }
+        .tab-active { border-bottom: 2px solid #16a34a; color: #16a34a; font-weight: bold; }
+        .tab-inactive { color: #64748b; }
+        .tab-inactive:hover { color: #334155; }
+        
+        /* Toast Animation */
+        @keyframes slideInUp {
+            from { transform: translate(-50%, 100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .toast-enter { animation: slideInUp 0.3s ease-out forwards; }
+        .toast-exit { animation: fadeOut 0.3s ease-out forwards; }
+
+        /* Custom Scrollbar for table */
+        .table-container::-webkit-scrollbar { height: 8px; width: 8px; }
+        .table-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="ph-fill ph-book-open text-brand-600 text-2xl"></i>
+                <h1 class="font-bold text-lg sm:text-xl text-slate-800 tracking-tight">범박고등학교 독서활동 기록 시스템</h1>
+            </div>
+            <div id="userProfile" class="hidden flex items-center gap-3">
+                <span id="userNameDisplay" class="text-sm font-medium text-slate-600"></span>
+                <button id="logoutBtn" class="text-sm px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors font-medium">로그아웃</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex flex-col">
+        
+        <!-- View 1: Auth (Login/Register) -->
+        <div id="view-auth" class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden mt-10">
+            <!-- Auth Toggle -->
+            <div class="flex border-b border-slate-200">
+                <button id="btnShowLogin" class="flex-1 py-4 text-center font-bold text-brand-600 border-b-2 border-brand-600 bg-brand-50 transition-colors">로그인</button>
+                <button id="btnShowRegister" class="flex-1 py-4 text-center font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors border-b-2 border-transparent">회원가입</button>
+            </div>
+
+            <div class="p-6 sm:p-8">
+                <!-- Role Selector -->
+                <div class="flex justify-center mb-6 bg-slate-100 rounded-lg p-1">
+                    <button id="roleStudentBtn" class="flex-1 py-2 text-sm font-bold bg-white text-slate-800 rounded-md shadow-sm transition-all">학생</button>
+                    <button id="roleTeacherBtn" class="flex-1 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 rounded-md transition-all">교사</button>
+                </div>
+
+                <h2 id="authTitle" class="text-2xl font-bold text-slate-800 mb-6 text-center">학생 로그인</h2>
+
+                <!-- Dynamic Auth Form -->
+                <form id="authForm" class="space-y-4">
+                    <!-- Student specific fields -->
+                    <div id="studentFields" class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">학년</label>
+                            <select id="grade" class="w-full rounded-lg border-slate-300 border px-3 py-2 text-sm focus:ring-brand-500 focus:border-brand-500 outline-none">
+                                <option value="1">1학년</option>
+                                <option value="2">2학년</option>
+                                <option value="3">3학년</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">반</label>
+                            <input type="number" id="classNum" min="1" max="15" class="w-full rounded-lg border-slate-300 border px-3 py-2 text-sm focus:ring-brand-500 focus:border-brand-500 outline-none" placeholder="예: 3">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">번호</label>
+                            <input type="number" id="studentNum" min="1" max="40" class="w-full rounded-lg border-slate-300 border px-3 py-2 text-sm focus:ring-brand-500 focus:border-brand-500 outline-none" placeholder="예: 15">
+                        </div>
+                    </div>
+
+                    <!-- Common & Teacher Fields -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">이름</label>
+                        <input type="text" id="name" required class="w-full rounded-lg border-slate-300 border px-4 py-2.5 text-sm focus:ring-brand-500 focus:border-brand-500 outline-none placeholder-slate-400" placeholder="실명을 입력하세요">
+                    </div>
+                    
+                    <div id="phoneField" class="hidden">
+                        <label class="block text-xs font-medium text-slate-500 mb-1">핸드폰 번호</label>
+                        <input type="tel" id="phone" class="w-full rounded-lg border-slate-300 border px-4 py-2.5 text-sm focus:ring-brand-500 focus:border-brand-500 outline-none placeholder-slate-400" placeholder="010-0000-0000">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">비밀번호 (숫자 4자리)</label>
+                        <input type="password" id="password" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" class="w-full rounded-lg border-slate-300 border px-4 py-2.5 text-sm focus:ring-brand-500 focus:border-brand-500 outline-none placeholder-slate-400" placeholder="****">
+                    </div>
+
+                    <button type="submit" id="authSubmitBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 mt-4">
+                        <span>로그인</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- View 2: Student Dashboard -->
+        <div id="view-student" class="hidden w-full h-full flex-col">
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-200 mb-6">
+                <button id="tabWrite" class="px-6 py-3 text-sm sm:text-base tab-active flex items-center gap-2 transition-colors">
+                    <i class="ph ph-pencil-simple-line text-lg"></i> 독서 감상문 입력
+                </button>
+                <button id="tabHistory" class="px-6 py-3 text-sm sm:text-base tab-inactive flex items-center gap-2 transition-colors">
+                    <i class="ph ph-archive text-lg"></i> 학교생활기록부용 기록
+                </button>
+            </div>
+
+            <!-- Tab Content: Write -->
+            <div id="contentWrite" class="flex-grow bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+                <form id="writeForm" class="space-y-6 max-w-2xl mx-auto">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">책 제목</label>
+                            <input type="text" id="bookTitle" required class="w-full rounded-lg border-slate-300 border px-4 py-3 focus:ring-brand-500 focus:border-brand-500 outline-none bg-slate-50 focus:bg-white transition-colors" placeholder="책 제목을 입력하세요">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">저자명</label>
+                            <input type="text" id="bookAuthor" required class="w-full rounded-lg border-slate-300 border px-4 py-3 focus:ring-brand-500 focus:border-brand-500 outline-none bg-slate-50 focus:bg-white transition-colors" placeholder="저자명을 입력하세요">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">독서 활동 기록일</label>
+                        <input type="text" id="recordDate" disabled class="w-full rounded-lg border-slate-200 border px-4 py-3 bg-slate-100 text-slate-500 font-medium cursor-not-allowed">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2 flex justify-between items-end">
+                            <span>독서 감상 기록</span>
+                            <span class="text-xs font-normal text-slate-400">자유롭게 느낌 점을 작성하세요</span>
+                        </label>
+                        <textarea id="bookReview" required rows="6" class="w-full rounded-lg border-slate-300 border px-4 py-3 focus:ring-brand-500 focus:border-brand-500 outline-none bg-slate-50 focus:bg-white transition-colors resize-none" placeholder="이 책을 읽고 느낀 점, 깨달은 점, 인상 깊었던 구절 등을 작성해 주세요."></textarea>
+                    </div>
+
+                    <button type="submit" id="submitReviewBtn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl transition-colors shadow-md flex justify-center items-center gap-2 text-lg">
+                        <i class="ph ph-sparkle"></i>
+                        <span>제출 및 생활기록부 문구 생성하기</span>
+                    </button>
+                </form>
+
+                <!-- Loading Overlay inside Write Form -->
+                <div id="aiLoading" class="hidden mt-6 bg-brand-50 border border-brand-100 rounded-xl p-6 text-center flex flex-col items-center justify-center gap-3">
+                    <i class="ph ph-spinner-gap animate-spin text-3xl text-brand-500"></i>
+                    <p class="text-brand-800 font-medium text-sm sm:text-base">AI가 생활기록부용 문구를 작성하고 있습니다...<br><span class="text-xs text-brand-600 font-normal">약 3~5초 정도 소요될 수 있습니다.</span></p>
+                </div>
+            </div>
+
+            <!-- Tab Content: History -->
+            <div id="contentHistory" class="hidden flex-grow flex flex-col gap-4">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-800">나의 누적 기록</h3>
+                        <p class="text-sm text-slate-500">지금까지 생성된 학교생활기록부용 문구입니다.</p>
+                    </div>
+                    <span class="bg-brand-100 text-brand-700 font-bold px-3 py-1 rounded-full text-sm" id="studentTotalCount">0건</span>
+                </div>
+                
+                <div id="studentHistoryList" class="space-y-4 pb-8">
+                    <!-- History Items will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- View 3: Teacher Dashboard -->
+        <div id="view-teacher" class="hidden w-full h-full flex-col">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">전체 학생 독서 기록</h2>
+                    <p class="text-sm text-slate-500 mt-1">학생들이 작성한 모든 생활기록부용 문구가 시간순으로 표시됩니다.</p>
+                </div>
+                <button id="exportExcelBtn" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap">
+                    <i class="ph ph-download-simple text-lg"></i>
+                    엑셀 파일로 다운로드
+                </button>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-grow flex flex-col">
+                <div class="table-container overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200">
+                                <th class="p-4 text-sm font-semibold text-slate-600 whitespace-nowrap w-20">학년</th>
+                                <th class="p-4 text-sm font-semibold text-slate-600 whitespace-nowrap w-20">반</th>
+                                <th class="p-4 text-sm font-semibold text-slate-600 whitespace-nowrap w-20">번호</th>
+                                <th class="p-4 text-sm font-semibold text-slate-600 whitespace-nowrap w-24">이름</th>
+                                <th class="p-4 text-sm font-semibold text-slate-600 min-w-[300px]">학교생활기록부 기재 문구</th>
+                                <th class="p-4 text-sm font-semibold text-slate-600 whitespace-nowrap w-40">기록일시</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacherTableBody" class="divide-y divide-slate-100">
+                            <!-- Table rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Empty state -->
+                <div id="teacherEmptyState" class="hidden p-12 text-center flex flex-col items-center justify-center h-48">
+                    <i class="ph ph-folder-open text-4xl text-slate-300 mb-3"></i>
+                    <p class="text-slate-500 font-medium">아직 등록된 학생 기록이 없습니다.</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Custom Toast Container -->
+    <div id="toastContainer" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, collection, getDocs, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration (from environment variables or fallback)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'beombak-reading-2026';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-key",
+            authDomain: "demo.firebaseapp.com",
+            projectId: "demo-project",
+            storageBucket: "demo.appspot.com",
+            messagingSenderId: "12345",
+            appId: "1:12345:web:abcde"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Global State
+        let currentUser = null; // { type: 'student'|'teacher', name, grade, classNum, studentNum, id }
+        let currentAuthMode = 'login'; // 'login' or 'register'
+        let currentRole = 'student'; // 'student' or 'teacher'
+        let unsubscribeLogs = null;
+        let allLogsCache = [];
+
+        // UI Elements
+        const el = {
+            viewAuth: document.getElementById('view-auth'),
+            viewStudent: document.getElementById('view-student'),
+            viewTeacher: document.getElementById('view-teacher'),
+            
+            // Auth Toggle
+            btnShowLogin: document.getElementById('btnShowLogin'),
+            btnShowRegister: document.getElementById('btnShowRegister'),
+            roleStudentBtn: document.getElementById('roleStudentBtn'),
+            roleTeacherBtn: document.getElementById('roleTeacherBtn'),
+            
+            // Auth Form
+            authTitle: document.getElementById('authTitle'),
+            authForm: document.getElementById('authForm'),
+            studentFields: document.getElementById('studentFields'),
+            phoneField: document.getElementById('phoneField'),
+            authSubmitBtn: document.getElementById('authSubmitBtn'),
+            
+            // Auth Inputs
+            grade: document.getElementById('grade'),
+            classNum: document.getElementById('classNum'),
+            studentNum: document.getElementById('studentNum'),
+            name: document.getElementById('name'),
+            phone: document.getElementById('phone'),
+            password: document.getElementById('password'),
+            
+            // Header
+            userProfile: document.getElementById('userProfile'),
+            userNameDisplay: document.getElementById('userNameDisplay'),
+            logoutBtn: document.getElementById('logoutBtn'),
+            
+            // Student Tabs
+            tabWrite: document.getElementById('tabWrite'),
+            tabHistory: document.getElementById('tabHistory'),
+            contentWrite: document.getElementById('contentWrite'),
+            contentHistory: document.getElementById('contentHistory'),
+            
+            // Write Form
+            writeForm: document.getElementById('writeForm'),
+            recordDate: document.getElementById('recordDate'),
+            bookTitle: document.getElementById('bookTitle'),
+            bookAuthor: document.getElementById('bookAuthor'),
+            bookReview: document.getElementById('bookReview'),
+            submitReviewBtn: document.getElementById('submitReviewBtn'),
+            aiLoading: document.getElementById('aiLoading'),
+            
+            // History
+            studentHistoryList: document.getElementById('studentHistoryList'),
+            studentTotalCount: document.getElementById('studentTotalCount'),
+            
+            // Teacher
+            teacherTableBody: document.getElementById('teacherTableBody'),
+            teacherEmptyState: document.getElementById('teacherEmptyState'),
+            exportExcelBtn: document.getElementById('exportExcelBtn'),
+            
+            // Toast
+            toastContainer: document.getElementById('toastContainer')
+        };
+
+        
+        // Custom Toast Notification
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-slate-800' : (type === 'error' ? 'bg-red-600' : 'bg-slate-700');
+            const icon = type === 'success' ? '<i class="ph ph-check-circle text-green-400 text-lg"></i>' : '<i class="ph ph-warning-circle text-red-200 text-lg"></i>';
+            
+            toast.className = `toast-enter flex items-center gap-3 ${bgClass} text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium`;
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            
+            el.toastContainer.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // View Routing
+        function showView(viewName) {
+            el.viewAuth.classList.add('hidden');
+            el.viewStudent.classList.add('hidden');
+            el.viewTeacher.classList.add('hidden');
+            el.userProfile.classList.add('hidden');
+
+            if (viewName === 'auth') {
+                el.viewAuth.classList.remove('hidden');
+            } else if (viewName === 'student') {
+                el.viewStudent.classList.remove('hidden');
+                el.viewStudent.classList.add('flex');
+                el.userProfile.classList.remove('hidden');
+                switchStudentTab('write');
+            } else if (viewName === 'teacher') {
+                el.viewTeacher.classList.remove('hidden');
+                el.viewTeacher.classList.add('flex');
+                el.userProfile.classList.remove('hidden');
+                loadTeacherData();
+            }
+        }
+
+        function formatDateTime(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const h = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            return `${y}-${m}-${d} ${h}:${min}`;
+        }
+
+        
+        // Toggle Login / Register
+        function updateAuthUI() {
+            // Update Toggle buttons
+            if (currentAuthMode === 'login') {
+                el.btnShowLogin.classList.replace('text-slate-500', 'text-brand-600');
+                el.btnShowLogin.classList.replace('border-transparent', 'border-brand-600');
+                el.btnShowLogin.classList.replace('hover:bg-slate-50', 'bg-brand-50');
+                el.btnShowLogin.classList.add('font-bold');
+                
+                el.btnShowRegister.classList.replace('text-brand-600', 'text-slate-500');
+                el.btnShowRegister.classList.replace('border-brand-600', 'border-transparent');
+                el.btnShowRegister.classList.replace('bg-brand-50', 'hover:bg-slate-50');
+                el.btnShowRegister.classList.remove('font-bold');
+                
+                el.phoneField.classList.add('hidden');
+                el.phone.removeAttribute('required');
+                el.authSubmitBtn.innerHTML = '<span>로그인</span>';
+            } else {
+                el.btnShowRegister.classList.replace('text-slate-500', 'text-brand-600');
+                el.btnShowRegister.classList.replace('border-transparent', 'border-brand-600');
+                el.btnShowRegister.classList.replace('hover:bg-slate-50', 'bg-brand-50');
+                el.btnShowRegister.classList.add('font-bold');
+                
+                el.btnShowLogin.classList.replace('text-brand-600', 'text-slate-500');
+                el.btnShowLogin.classList.replace('border-brand-600', 'border-transparent');
+                el.btnShowLogin.classList.replace('bg-brand-50', 'hover:bg-slate-50');
+                el.btnShowLogin.classList.remove('font-bold');
+                
+                el.phoneField.classList.remove('hidden');
+                el.phone.setAttribute('required', 'true');
+                el.authSubmitBtn.innerHTML = '<span>회원가입</span>';
+            }
+
+            // Update Role Toggle buttons
+            if (currentRole === 'student') {
+                el.roleStudentBtn.classList.add('bg-white', 'text-slate-800', 'font-bold', 'shadow-sm');
+                el.roleStudentBtn.classList.remove('text-slate-500', 'font-medium', 'hover:text-slate-700');
+                
+                el.roleTeacherBtn.classList.remove('bg-white', 'text-slate-800', 'font-bold', 'shadow-sm');
+                el.roleTeacherBtn.classList.add('text-slate-500', 'font-medium', 'hover:text-slate-700');
+                
+                el.studentFields.classList.remove('hidden');
+                el.grade.setAttribute('required', 'true');
+                el.classNum.setAttribute('required', 'true');
+                el.studentNum.setAttribute('required', 'true');
+                
+                el.authTitle.innerText = currentAuthMode === 'login' ? '학생 로그인' : '학생 회원가입';
+            } else {
+                el.roleTeacherBtn.classList.add('bg-white', 'text-slate-800', 'font-bold', 'shadow-sm');
+                el.roleTeacherBtn.classList.remove('text-slate-500', 'font-medium', 'hover:text-slate-700');
+                
+                el.roleStudentBtn.classList.remove('bg-white', 'text-slate-800', 'font-bold', 'shadow-sm');
+                el.roleStudentBtn.classList.add('text-slate-500', 'font-medium', 'hover:text-slate-700');
+                
+                el.studentFields.classList.add('hidden');
+                el.grade.removeAttribute('required');
+                el.classNum.removeAttribute('required');
+                el.studentNum.removeAttribute('required');
+                
+                el.authTitle.innerText = currentAuthMode === 'login' ? '교사 로그인' : '교사 회원가입';
+            }
+        }
+
+        el.btnShowLogin.addEventListener('click', () => { currentAuthMode = 'login'; updateAuthUI(); });
+        el.btnShowRegister.addEventListener('click', () => { currentAuthMode = 'register'; updateAuthUI(); });
+        el.roleStudentBtn.addEventListener('click', () => { currentRole = 'student'; updateAuthUI(); });
+        el.roleTeacherBtn.addEventListener('click', () => { currentRole = 'teacher'; updateAuthUI(); });
+
+        
+        async function authenticateFirebase() {
+            // Wait for anonymous auth before querying
+            try {
+                if(typeof __initial_auth_token !== 'undefined') {
+                    // Though specs say try custom token, we use anonymous for this simple prototype mapping
+                    // to prevent auth domain issues in some iframes, unless specifically required.
+                    await signInAnonymously(auth);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase Auth Error:", error);
+            }
+        }
+
+        // Initialize Firebase Auth
+        authenticateFirebase();
+
+        el.authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Ensure authenticated with Firebase first
+            if (!auth.currentUser) {
+                await authenticateFirebase();
+            }
+
+            const name = el.name.value.trim();
+            const password = el.password.value.trim();
+            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+
+            try {
+                if (currentAuthMode === 'register') {
+                    // Register Logic
+                    const phone = el.phone.value.trim();
+                    const newUser = {
+                        type: currentRole,
+                        name: name,
+                        phone: phone,
+                        password: password, // In a real app, hash this! Kept simple per constraints.
+                        createdAt: serverTimestamp()
+                    };
+
+                    if (currentRole === 'student') {
+                        newUser.grade = el.grade.value;
+                        newUser.classNum = el.classNum.value;
+                        newUser.studentNum = el.studentNum.value;
+                    }
+
+                    // Check if exists (simple client-side check to prevent immediate dupes)
+                    const snapshot = await getDocs(usersRef);
+                    let exists = false;
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (currentRole === 'student') {
+                            if (data.type === 'student' && data.grade === newUser.grade && data.classNum === newUser.classNum && data.studentNum === newUser.studentNum) {
+                                exists = true;
+                            }
+                        } else {
+                            if (data.type === 'teacher' && data.name === newUser.name) {
+                                exists = true;
+                            }
+                        }
+                    });
+
+                    if (exists) {
+                        showToast(currentRole === 'student' ? '이미 가입된 학번입니다.' : '이미 가입된 교사 이름입니다.', 'error');
+                        return;
+                    }
+
+                    await addDoc(usersRef, newUser);
+                    showToast('회원가입이 완료되었습니다! 로그인해주세요.');
+                    currentAuthMode = 'login';
+                    updateAuthUI();
+                    el.password.value = ''; // Clear pw
+
+                } else {
+                    // Login Logic (Client-side validation as per Rule 2: No complex queries)
+                    const snapshot = await getDocs(usersRef);
+                    let foundUser = null;
+
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.type === currentRole && data.name === name && data.password === password) {
+                            if (currentRole === 'student') {
+                                if (data.grade === el.grade.value && data.classNum === el.classNum.value && data.studentNum === el.studentNum.value) {
+                                    foundUser = { id: doc.id, ...data };
+                                }
+                            } else {
+                                foundUser = { id: doc.id, ...data };
+                            }
+                        }
+                    });
+
+                    if (foundUser) {
+                        currentUser = foundUser;
+                        el.userNameDisplay.innerText = currentRole === 'student' 
+                            ? `${currentUser.grade}학년 ${currentUser.classNum}반 ${currentUser.studentNum}번 ${currentUser.name}` 
+                            : `${currentUser.name} 선생님`;
+                        
+                        showToast('로그인 되었습니다.');
+                        
+                        // Set Date
+                        el.recordDate.value = formatDateTime(new Date());
+
+                        if (currentRole === 'student') {
+                            showView('student');
+                        } else {
+                            showView('teacher');
+                        }
+                    } else {
+                        showToast('일치하는 회원 정보가 없습니다. 입력하신 정보를 확인해주세요.', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                showToast('시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+            }
+        });
+
+        // Logout
+        el.logoutBtn.addEventListener('click', () => {
+            currentUser = null;
+            if (unsubscribeLogs) unsubscribeLogs();
+            el.authForm.reset();
+            updateAuthUI();
+            showView('auth');
+            showToast('로그아웃 되었습니다.');
+        });
+
+        
+        // Tab switching
+        function switchStudentTab(tabId) {
+            if (tabId === 'write') {
+                el.tabWrite.className = "px-6 py-3 text-sm sm:text-base tab-active flex items-center gap-2 transition-colors";
+                el.tabHistory.className = "px-6 py-3 text-sm sm:text-base tab-inactive flex items-center gap-2 transition-colors border-b-2 border-transparent";
+                el.contentWrite.classList.remove('hidden');
+                el.contentHistory.classList.add('hidden');
+                el.recordDate.value = formatDateTime(new Date()); // Update time
+            } else {
+                el.tabHistory.className = "px-6 py-3 text-sm sm:text-base tab-active flex items-center gap-2 transition-colors";
+                el.tabWrite.className = "px-6 py-3 text-sm sm:text-base tab-inactive flex items-center gap-2 transition-colors border-b-2 border-transparent";
+                el.contentHistory.classList.remove('hidden');
+                el.contentHistory.classList.add('flex');
+                el.contentWrite.classList.add('hidden');
+                loadStudentHistory();
+            }
+        }
+
+        el.tabWrite.addEventListener('click', () => switchStudentTab('write'));
+        el.tabHistory.addEventListener('click', () => switchStudentTab('history'));
+
+        // Load specific student's history
+        async function loadStudentHistory() {
+            if (!currentUser || currentUser.type !== 'student') return;
+
+            const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'logs');
+            
+            if (unsubscribeLogs) unsubscribeLogs();
+
+            unsubscribeLogs = onSnapshot(logsRef, (snapshot) => {
+                const logs = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.userId === currentUser.id) {
+                        logs.push({ id: doc.id, ...data });
+                    }
+                });
+
+                // Sort by timestamp descending in memory
+                logs.sort((a, b) => b.timestamp - a.timestamp);
+
+                renderStudentHistory(logs);
+            }, (error) => {
+                console.error("Error fetching logs:", error);
+                showToast('기록을 불러오는데 실패했습니다.', 'error');
+            });
+        }
+
+        function renderStudentHistory(logs) {
+            el.studentTotalCount.innerText = `${logs.length}건`;
+            el.studentHistoryList.innerHTML = '';
+
+            if (logs.length === 0) {
+                el.studentHistoryList.innerHTML = `
+                    <div class="text-center py-12 bg-white rounded-xl border border-slate-100">
+                        <i class="ph ph-note-blank text-4xl text-slate-300 mb-2"></i>
+                        <p class="text-slate-500 font-medium">아직 작성한 독서 기록이 없습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            logs.forEach(log => {
+                const dateStr = log.timestamp ? formatDateTime(new Date(log.timestamp)) : '날짜 정보 없음';
+                
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-xl shadow-sm border border-slate-200 transition-all hover:shadow-md";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                <i class="ph-fill ph-book-bookmark text-brand-500"></i> ${log.title}
+                            </h4>
+                            <p class="text-sm text-slate-500 mt-1">저자: ${log.author}</p>
+                        </div>
+                        <span class="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded">${dateStr}</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded inline-block mb-2">생성된 생활기록부 문구</span>
+                        <p class="text-slate-700 leading-relaxed text-[15px] bg-slate-50 p-4 rounded-lg border border-slate-100">${log.generatedText}</p>
+                    </div>
+                `;
+                el.studentHistoryList.appendChild(card);
+            });
+        }
+
+        
+        async function generateLLMText(title, author, review) {
+            const prompt = `책제목: ${title}\n저자: ${author}\n독서감상문: ${review}\n\n위 내용을 바탕으로 고등학교 생활기록부 '교과세부능력 및 특기사항'에 들어갈 문구를 작성해줘. 띄어쓰기 포함 100~150자 분량이어야 하고, 책 제목과 저자명이 포함되어야 하며, 반드시 '~소감을 말함', '~을 느낌' 등의 문체로 마무리해줘. 다른 부연 설명이나 인사말 없이 오직 완성된 문구만 출력해줘.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: {
+                    parts: [{ text: "당신은 고등학교 선생님입니다. 학생이 작성한 독서 감상문을 바탕으로 학교생활기록부 교과세부능력 및 특기사항(세특)에 들어갈 문구를 규정에 맞게 작성합니다." }]
+                }
+            };
+
+            const apiKey = ""; // API Key injected by Canvas
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
+                    return result.candidates[0].content.parts[0].text.trim();
+                } else {
+                    throw new Error("Invalid LLM response format");
+                }
+            } catch (error) {
+                console.error("LLM Generation Error:", error);
+                throw error;
+            }
+        }
+
+        el.writeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser || currentUser.type !== 'student') return;
+
+            const title = el.bookTitle.value.trim();
+            const author = el.bookAuthor.value.trim();
+            const review = el.bookReview.value.trim();
+
+            if (!title || !author || !review) {
+                showToast("모든 항목을 입력해주세요.", "error");
+                return;
+            }
+
+            // UI Loading state
+            el.submitReviewBtn.disabled = true;
+            el.submitReviewBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            el.submitReviewBtn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> 처리중...';
+            el.aiLoading.classList.remove('hidden');
+
+            try {
+                // 1. Generate text via Gemini API
+                const generatedText = await generateLLMText(title, author, review);
+
+                // 2. Save to Firestore
+                const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'logs');
+                await addDoc(logsRef, {
+                    userId: currentUser.id,
+                    studentName: currentUser.name,
+                    grade: currentUser.grade,
+                    classNum: currentUser.classNum,
+                    studentNum: currentUser.studentNum,
+                    title: title,
+                    author: author,
+                    originalReview: review,
+                    generatedText: generatedText,
+                    timestamp: Date.now() // Use client timestamp for simple sorting without indexes
+                });
+
+                showToast("기록이 성공적으로 저장되었습니다!");
+                el.writeForm.reset();
+                switchStudentTab('history'); // Move to history tab to see result
+
+            } catch (error) {
+                showToast("문구 생성 중 오류가 발생했습니다.", "error");
+            } finally {
+                // Restore UI
+                el.submitReviewBtn.disabled = false;
+                el.submitReviewBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                el.submitReviewBtn.innerHTML = '<i class="ph ph-sparkle"></i><span>제출 및 생활기록부 문구 생성하기</span>';
+                el.aiLoading.classList.add('hidden');
+            }
+        });
+
+        
+        function loadTeacherData() {
+            if (!currentUser || currentUser.type !== 'teacher') return;
+
+            const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'logs');
+            
+            if (unsubscribeLogs) unsubscribeLogs();
+
+            unsubscribeLogs = onSnapshot(logsRef, (snapshot) => {
+                allLogsCache = [];
+                snapshot.forEach(doc => {
+                    allLogsCache.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Sort by timestamp ascending (oldest to newest) for cumulative view, or desc. Let's do desc for newest first.
+                allLogsCache.sort((a, b) => b.timestamp - a.timestamp);
+
+                renderTeacherTable(allLogsCache);
+            }, (error) => {
+                console.error("Error fetching logs:", error);
+                showToast('기록을 불러오는데 실패했습니다.', 'error');
+            });
+        }
+
+        function renderTeacherTable(logs) {
+            el.teacherTableBody.innerHTML = '';
+            
+            if (logs.length === 0) {
+                el.teacherEmptyState.classList.remove('hidden');
+                el.teacherTableBody.parentElement.classList.add('hidden');
+                return;
+            }
+
+            el.teacherEmptyState.classList.add('hidden');
+            el.teacherTableBody.parentElement.classList.remove('hidden');
+
+            logs.forEach(log => {
+                const dateStr = log.timestamp ? formatDateTime(new Date(log.timestamp)) : '';
+                
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-4 text-sm text-slate-700 whitespace-nowrap">${log.grade}</td>
+                    <td class="p-4 text-sm text-slate-700 whitespace-nowrap">${log.classNum}</td>
+                    <td class="p-4 text-sm text-slate-700 whitespace-nowrap">${log.studentNum}</td>
+                    <td class="p-4 text-sm font-medium text-slate-900 whitespace-nowrap">${log.studentName}</td>
+                    <td class="p-4 text-sm text-slate-800 leading-relaxed min-w-[300px]">
+                        <div class="font-bold text-[13px] text-brand-600 mb-1 border-b border-brand-100 pb-1 inline-block">[${log.title}]</div><br>
+                        ${log.generatedText}
+                    </td>
+                    <td class="p-4 text-sm text-slate-500 whitespace-nowrap">${dateStr}</td>
+                `;
+                el.teacherTableBody.appendChild(tr);
+            });
+        }
+
+        // Export to CSV/Excel
+        el.exportExcelBtn.addEventListener('click', () => {
+            if (allLogsCache.length === 0) {
+                showToast("다운로드할 데이터가 없습니다.", "error");
+                return;
+            }
+
+            // Prepare CSV header
+            let csvContent = "\uFEFF"; // BOM for UTF-8 Excel compatibility
+            csvContent += "학년,반,번호,이름,책제목,저자,작성내용,생활기록부용문구,기록일시\n";
+
+            // Process data, escaping quotes and commas
+            allLogsCache.forEach(log => {
+                const dateStr = log.timestamp ? formatDateTime(new Date(log.timestamp)) : '';
+                
+                const escapeCsv = (str) => {
+                    if (str == null) return '""';
+                    const stringified = String(str);
+                    return `"${stringified.replace(/"/g, '""')}"`;
+                };
+
+                const row = [
+                    log.grade,
+                    log.classNum,
+                    log.studentNum,
+                    escapeCsv(log.studentName),
+                    escapeCsv(log.title),
+                    escapeCsv(log.author),
+                    escapeCsv(log.originalReview),
+                    escapeCsv(log.generatedText),
+                    escapeCsv(dateStr)
+                ].join(",");
+
+                csvContent += row + "\n";
+            });
+
+            // Create Blob and trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            const today = new Date();
+            const filename = `범박고_독서활동기록_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}.csv`;
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast("엑셀 파일 다운로드가 시작되었습니다.");
+        });
+
+        // Initialize UI
+        updateAuthUI();
+
+    </script>
+</body>
+</html>
